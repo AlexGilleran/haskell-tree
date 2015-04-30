@@ -9,11 +9,10 @@ import           Diagrams.Coordinates
 import           Diagrams.Prelude
 
 import Diagrams.Backend.SVG
+import Control.Monad
 
 import           Diagrams.TwoD.Layout.Tree
 import           Diagrams.TwoD.Path.Turtle
-
-import           Control.Monad
 
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
@@ -25,28 +24,11 @@ evolve maxIterations currentIterations text
   where
     replaced = T.replace "F" "FF" (T.replace "X" "F-[[X]+X]+F[+FX]-X" text)
 
-blahFace2 = [
-    setHeading 0,
-    forward 5,
-    right 90,
- --   replicateM 5 (forward 0.9 >> right 36),
-    forward 0.9,
-    left 135,
-    forward 3]
+--stepsToTurtle :: (OrderedField n, Monad m) => [TurtleT n m ()] -> Turtle n ()
+stepsToTurtle steps = foldl (>>) (setHeading 0) steps
 
-blahFace = 
-    setHeading 0 >> 
-    forward 5 >>
-    right 90 >> 
-    replicateM 5 (forward 0.9 >> right 36) >> 
-    forward 0.9 >> 
-    left 135 >> 
-    forward 3
-
-blahFace3 = foldl (>>) (setHeading 0) blahFace2
-
-drawTree :: Double -> Diagram B
-drawTree recursions = sketchTurtle blahFace3
+--drawTree :: (OrderedField n, Monad m) => [TurtleT n m ()] -> Diagram B
+drawTree turtleSteps = sketchTurtle (stepsToTurtle turtleSteps)
   # reversePath
   # stroke
   # lw 5
@@ -54,7 +36,20 @@ drawTree recursions = sketchTurtle blahFace3
   # lineCap LineCapRound
   # lc green
 
-f :: Double -> String -> Diagram B
-f recursions start = drawTree recursions
+charToFunction :: (OrderedField n,  Monad m) => Char -> TurtleT n m ()
+charToFunction char
+  | char == 'F' = forward 5
+  | char == '-' = left 25
+  | char == '+' = right 25
+  | otherwise = forward 0
+
+generateTreeSource:: Int -> T.Text -> T.Text
+generateTreeSource recursions start = evolve recursions 0 start
+
+generateSteps :: (OrderedField n, Monad m) => T.Text -> [TurtleT n m ()]
+generateSteps source = map charToFunction (T.unpack source)
+
+f :: Int -> String -> Diagram B
+f recursions start = drawTree (generateSteps (generateTreeSource recursions (T.pack start)))
 
 main = mainWith f 
